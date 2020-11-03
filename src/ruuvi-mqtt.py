@@ -114,6 +114,7 @@ def ruuvi_main(queue, config):
         nonlocal last_measurement
 
         mac, data = found_data
+        lmac = mac.lower()
 
         LOGGER.debug("Read ruuvi data from mac %s: %s", mac, data)
 
@@ -147,7 +148,7 @@ def ruuvi_main(queue, config):
         last_measurement[data["mac"]] = cur_seq
 
         # Find the device name, if any
-        data["ruuvi_mqtt_name"] = config["macnames"].get(mac.lower(), "")
+        data["ruuvi_mqtt_name"] = config["macnames"].get(lmac, "")
 
         # Add a time stamp. This is an integer, in milliseconds
         # since epoch
@@ -166,7 +167,7 @@ def ruuvi_main(queue, config):
 
 def process_mac_names(namelist):
     """
-    Given a list of mac:name pairs from the CLI, parse the list,
+    Given a list of mac/name pairs from the CLI, parse the list,
     validate the entries, and produce a mac->name dict
     """
 
@@ -227,7 +228,6 @@ def main():
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    print(args.mac_name)
     config["macnames"] = process_mac_names(args.mac_name)
 
     if args.filter_mac_name:
