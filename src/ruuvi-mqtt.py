@@ -153,7 +153,12 @@ def ruuvi_main(queue, config):
             processed_data = {}
             for key, value in data.items():
                 if key in config["offset_poly"][lmac]:
-                    processed_data[key] = config["offset_poly"][lmac][key](value)
+                    # Ruuvi sends data with two significant digits,
+                    # round the scaled data as well
+                    processed_data[key] = round(
+                        config["offset_poly"][lmac][key](value), 2
+                    )
+                    processed_data["ruuvi_mqtt_raw_%s" % (key,)] = value
                 else:
                     processed_data[key] = value
 
