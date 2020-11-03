@@ -61,7 +61,7 @@ def mqtt_main(queue, config):
     client.on_connect = mqtt_on_connect
     client.on_disconnect = mqtt_on_disconnect
 
-    client.connect("10.200.254.5")
+    client.connect(config["mqtt_host"], port=config["mqtt_port"])
 
     # This will spawn a thread that handles events and reconnects
     client.loop_start()
@@ -347,16 +347,22 @@ def main():
         help="Build a MAC filter list from defined --mac-name pairs",
     )
     parser.add_argument(
+        "--offset-poly",
+        action="append",
+        nargs="*",
+        help="Define a polynomial offset function for a sensor and measurement",
+    )
+    parser.add_argument(
         "--mqtt-topic",
         type=str,
         default="ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR",
         help="MQTT topic to publish to. May contain python format string references to variables `name` and `mac`. `mac` will not contain colons.",
     )
     parser.add_argument(
-        "--offset-poly",
-        action="append",
-        nargs="*",
-        help="Define a polynomial offset function for a sensor and measurement",
+        "--mqtt-host", type=str, required=True, help="MQTT server to connect to"
+    )
+    parser.add_argument(
+        "--mqtt-port", type=int, default=1883, help="MQTT port to connect to"
     )
 
     args = parser.parse_args()
@@ -372,6 +378,8 @@ def main():
         config["filter"].extend(list(config["macnames"].keys()))
 
     config["mqtt_topic"] = args.mqtt_topic
+    config["mqtt_host"] = args.mqtt_host
+    config["mqtt_port"] = args.mqtt_port
 
     LOGGER.debug("Completed config: %s", config)
 
