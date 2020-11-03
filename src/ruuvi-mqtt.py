@@ -5,6 +5,7 @@ Ruuvi-to-mqtt gateway
 
 import logging
 import argparse
+import textwrap
 
 import re
 
@@ -147,6 +148,19 @@ def ruuvi_main(queue, config):
 
         last_measurement[data["mac"]] = cur_seq
 
+        # Process the data through offset functions
+        if lmac in config["offset_poly"]:
+            processed_data = {}
+            for key, value in data.items():
+                if key in config["offset_poly"][lmac]:
+                    processed_data[key] = config["offset_poly"][lmac][key](value)
+                else:
+                    processed_data[key] = value
+
+            data = processed_data
+
+        LOGGER.debug("Processed ruuvi data from mac %s: %s", mac, data)
+
         # Find the device name, if any
         data["ruuvi_mqtt_name"] = config["macnames"].get(lmac, "")
 
@@ -189,7 +203,65 @@ def process_mac_names(namelist):
 
             ret[mac] = name
         except Exception as exc:
-            LOGGER.error("Error parsing %s: %s" % (entry, exc))
+            LOGGER.error("Error parsing %s: %s", entry, exc)
+            raise SystemExit(1)
+
+    return ret
+
+
+def process_offset_poly(polylist):
+    """
+    Given a list of offset definitions, parse the definitions and
+    return a structure
+    """
+
+    def mkpoly(*constants):
+        """
+        Return a function that evaluates the polynomial
+        given by the constants.
+
+        Constants are passed in descending order, an ... a2, a1, a0
+        for the polynomial
+
+        f(x) = an &* x^n + ... + a2 * x^2 + a1 * x^1 + a0
+        """
+        # Make a copy of the constants, they must not change
+        # later
+        cconstants = constants[:]
+
+        def poly(x):
+            return sum(((x ** e) * c) for e, c in enumerate(reversed(cconstants)))
+
+        return poly
+
+    ret = {}
+    if polylist is None:
+        return ret
+
+    for entry in polylist:
+        try:
+            mac, measurement, constants = entry[0].split("/", 3)
+            if not re.match(r"^(?:[a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$", mac):
+                raise ValueError("%s is not a valid MAC" % (mac,))
+            if re.match(r"\s", measurement):
+                raise ValueError("measurement %s contains whitespace" % (name,))
+
+            # Turn constants into floats
+            fconstants = [float(x) for x in constants.split(",")]
+
+            mac = mac.lower()
+            measurement = measurement.lower()
+            if mac not in ret:
+                ret[mac] = {}
+
+            if measurement in ret[mac]:
+                raise ValueError(
+                    "Duplicate offset definition for %s/%s" % (mac, measurement)
+                )
+
+            ret[mac][measurement] = mkpoly(*fconstants)
+        except Exception as exc:
+            LOGGER.error("Error parsing %s: %s", entry, exc)
             raise SystemExit(1)
 
     return ret
@@ -201,8 +273,66 @@ def main():
     """
     config = {"filter": []}
 
+    class CustomFormatter(
+        argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter
+    ):
+        """
+        A custom formatter that allows fixed formatting for the epilog,
+        while auto-formatting the normal argument help text.
+
+        This is from https://stackoverflow.com/questions/18462610/argumentparser-epilog-and-description-formatting-in-conjunction-with-argumentdef
+        and I have no idea why this works.
+        """
+
+        pass
+
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=CustomFormatter,
+        epilog=textwrap.dedent(
+            """
+            Polynomial offset functions
+
+            Polynomial offset functions are offered for multiple measurements,
+            to assist with calibrating measurements across multiple tags.
+
+            The way these work is to define a polynomial of arbitrary size.
+            The raw measurement is passed through the polynomial, and the
+            resulting value is then sent to mqtt.
+
+            A polynomial has the general form
+
+            f(x) = an * x^n + .... + a2 * x^2 + a1 * x^1 + a0
+
+            Where an...a0 are the so called polynomial constants.
+
+            The general format of this parameter is:
+              mac/measurement/constants
+
+            mac is the mac address of the tag, in aa:bb:cc:dd:ee:ff form
+            measurement is the name of the measurement the polynomial is to
+              be applied to
+            constants is a comma separated list of floats, representing
+              the polynomial constants. These are given in descending order,
+              from an to a0. The number of constants given determines the
+              order of the polynomial
+
+            Example:
+
+            aa:bb:cc:dd:ee:ff/temperature/1,1.5
+
+            This will apply the polynomial f(x) = 1 * x + 1.5 to the
+            temperature measurement from the tag with mac aa:bb:cc:dd:ee:ff.
+            This will just add 1.5 to all temperature measurements, and thus
+            represent a constant offset.
+
+
+            aa:bb:cc:dd:ee:ff/humidity/0.98,1.01,0
+
+            This will apply the polynomial f(x) = 0.98 * x^2 + 1.01 * x to
+            the humidity measurement from the tag with mac aa:bb:cc:dd:ee:ff.
+            Note that all constants need to be given, even if they are 0.
+        """
+        ),
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument(
@@ -222,6 +352,12 @@ def main():
         default="ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR",
         help="MQTT topic to publish to. May contain python format string references to variables `name` and `mac`. `mac` will not contain colons.",
     )
+    parser.add_argument(
+        "--offset-poly",
+        action="append",
+        nargs="*",
+        help="Define a polynomial offset function for a sensor and measurement",
+    )
 
     args = parser.parse_args()
 
@@ -229,6 +365,8 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     config["macnames"] = process_mac_names(args.mac_name)
+
+    config["offset_poly"] = process_offset_poly(args.offset_poly)
 
     if args.filter_mac_name:
         config["filter"].extend(list(config["macnames"].keys()))
