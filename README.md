@@ -3,7 +3,7 @@
 This is a simple application that reads BLE broadcasts from 
 [Ruuvi tags](https://www.ruuvi.com) and sends them to an MQTT gateway.
 
-It's a thin wrapper around [ruuvitag_sensor](https://pypi.org/project/ruuvitag-sensor/)
+It's a thin wrapper around [ruuvitag-sensor](https://pypi.org/project/ruuvitag-sensor/)
 for reading from the sensors, and [paho-mqtt](https://pypi.org/project/paho-mqtt/)
 for talking to MQTT.
 
@@ -12,7 +12,7 @@ It also can do some data enrichment and data calibration.
 ## Installation
 
 This is a single script program that can be run directly from a git
-checkout. The only external dependencies are `ruuvitag_sensor` and `paho-mqtt`.
+checkout. The only external dependencies are `ruuvitag-sensor` and `paho-mqtt`.
 These can be installed in a venv if required via the enclosed `requirements.txt`.
 
 ## Running
