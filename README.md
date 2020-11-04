@@ -15,6 +15,9 @@ This is a single script program that can be run directly from a git
 checkout. The only external dependencies are `ruuvitag-sensor` and `paho-mqtt`.
 These can be installed in a venv if required via the enclosed `requirements.txt`.
 
+See the installation instructions of `ruuvitag-sensor` for information on
+how to set up bluez, which it uses under the hood.
+
 ## Running
 
 The program has the following command line parameters:
