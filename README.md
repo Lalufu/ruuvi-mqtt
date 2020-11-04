@@ -85,3 +85,19 @@ aa:bb:cc:dd:ee:ff/humidity/0.98,1.01,0
 This will apply the polynomial f(x) = 0.98 * x^2 + 1.01 * x to
 the humidity measurement from the tag with mac aa:bb:cc:dd:ee:ff.
 Note that all constants need to be given, even if they are 0.
+
+## Data pushed to MQTT
+
+The script pushes the data received from the Ruuvi tags to MQTT as a JSON
+string. The original structure as received from `ruuvitag-sensor` is
+preserved, with the below changes.
+
+- a `ruuvi_mqtt_timestamp` field is added, containing the time the datagram
+  was received via BLE. This field is the UNIX epoch, in milliseconds.
+
+- a `ruuvi_mqtt_name` field is added, containing the human readable name
+  of the tag as defined with `--mac-name`. If no name is defined for a tag
+  the empty string is used.
+
+- For each field that was modified through a `--offset-poly` function, the
+  original value is preserved in a field called `ruuvi_mqtt_raw_<field>`.
