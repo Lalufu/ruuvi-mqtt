@@ -137,15 +137,6 @@ def ruuvi_main(queue, config):
             )
             return
 
-        if cur_seq < last_seq:
-            # Reboot?
-            LOGGER.info(
-                "Sequence number going backwards (%d -> %d) for %s, reboot?",
-                cur_seq,
-                last_seq,
-                data["mac"],
-            )
-
         last_measurement[data["mac"]] = cur_seq
 
         # Process the data through offset functions
