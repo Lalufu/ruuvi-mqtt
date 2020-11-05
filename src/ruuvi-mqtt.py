@@ -6,6 +6,7 @@ Ruuvi-to-mqtt gateway
 import logging
 import argparse
 import textwrap
+import math
 
 import re
 
@@ -102,6 +103,44 @@ def ruuvi_main(queue, config):
     # They may also go down (when a Ruuvi reboots)
     last_measurement = defaultdict(lambda: 0)
 
+    def dewpoint(temperature, humidity):
+        """
+        Calculate an approximate dewpoint temperature Tdp, given a temperature T
+        and relative humidity H.
+
+        This uses the Magnus formula:
+
+        N = ln(H / 100) + (( b * T ) / ( c + T ))
+
+        Tdp = ( c * N ) / ( b - N )
+
+        The constants b and c come from
+
+        https://doi.org/10.1175/1520-0450(1981)020%3C1527:NEFCVP%3E2.0.CO;2
+
+        and are
+        b = 17.368
+        c = 238.88
+
+        for temperatures >= 0 degrees C and
+
+        b = 17.966
+        c = 247.15
+
+        for temperatures < 0 degrees C
+        """
+
+        if temperature >= 0:
+            b = 17.368
+            c = 238.88
+        else:
+            b = 17.966
+            c = 247.15
+
+        N = math.log(humidity / 100) + ((b * temperature) / (c + temperature))
+
+        return (c * N) / (b - N)
+
     def ruuvi_handle_data(found_data):
         """
         Callback function for tag data
@@ -154,6 +193,12 @@ def ruuvi_main(queue, config):
                     processed_data[key] = value
 
             data = processed_data
+
+        # Add the dew point temperature, if requested
+        if config["dewpoint"]:
+            data["ruuvi_mqtt_dewpoint"] = round(
+                dewpoint(data["temperature"], data["humidity"]), 2
+            )
 
         LOGGER.debug("Processed ruuvi data from mac %s: %s", mac, data)
 
@@ -349,6 +394,11 @@ def main():
         help="Define a polynomial offset function for a sensor and measurement",
     )
     parser.add_argument(
+        "--dewpoint",
+        action="store_true",
+        help="Calculate an approximate dew point temperature and add it to the data as `ruuvi_mqtt_dewpoint`. This follows the Magnus formula with coefficients by Buck/1981",
+    )
+    parser.add_argument(
         "--mqtt-topic",
         type=str,
         default="ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR",
@@ -376,6 +426,7 @@ def main():
     config["mqtt_topic"] = args.mqtt_topic
     config["mqtt_host"] = args.mqtt_host
     config["mqtt_port"] = args.mqtt_port
+    config["dewpoint"] = args.dewpoint
 
     LOGGER.debug("Completed config: %s", config)
 
