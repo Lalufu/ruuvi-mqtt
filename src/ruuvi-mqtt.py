@@ -3,23 +3,19 @@
 Ruuvi-to-mqtt gateway
 """
 
-import logging
 import argparse
-import textwrap
-import math
-
-import re
-
-import queue
-import time
-
-import multiprocessing
 import json
-
+import logging
+import math
+import multiprocessing
+import queue
+import re
+import textwrap
+import time
 from collections import defaultdict
 
-from ruuvitag_sensor.ruuvi import RuuviTagSensor
 import paho.mqtt.client as mqtt
+from ruuvitag_sensor.ruuvi import RuuviTagSensor
 
 logging.basicConfig(
     format="%(asctime)-15s %(levelname)s: %(message)s", level=logging.INFO
