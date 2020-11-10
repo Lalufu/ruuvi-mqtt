@@ -11,6 +11,7 @@ import multiprocessing
 import queue
 import re
 import textwrap
+import threading
 import time
 from collections import defaultdict
 
@@ -34,55 +35,80 @@ def mqtt_main(queue, config):
     def mqtt_on_connect(client, userdata, flags, rc):
         """
         Callback for the on_connect event
+
+        This is called from a different thread
         """
-        nonlocal connected
-        LOGGER.debug("mqtt on_conncet called, flags=%s, rc=%d", flags, rc)
-        connected = rc == 0
+        nonlocal connected, connected_cv
+        LOGGER.debug("mqtt on_connect called, flags=%s, rc=%d", flags, rc)
+
+        with connected_cv:
+            connected = rc == 0
+            if connected:
+                connected_cv.notify()
 
     def mqtt_on_disconnect(client, userdata, rc):
         """
         Callback for the on_disconnect event
+
+        This is called from a different thread
         """
-        nonlocal connected
+        nonlocal connected, connected_cv
         LOGGER.debug("mqtt on_disconnect called, rc=%d", rc)
         if rc != 0:
             # Unexpected disconnect
             LOGGER.error("Unexpected disconnect from MQTT")
 
-        connected = False
+        with connected_cv:
+            connected = False
+
+            # We do not have to wake up the waiter for this,
+            # because they'll just go back to sleep anyway
 
     LOGGER.info("mqtt process starting")
 
+    # connected is tracking the connection state to MQTT.
+    # connected_cv is a condition variable that is protecing
+    # access to connected, because it is modified from a different
+    # thread.
     connected = False
+    connected_cv = threading.Condition()
+
     client = mqtt.Client("ruuvi-mqtt-gateway")
     client.on_connect = mqtt_on_connect
     client.on_disconnect = mqtt_on_disconnect
 
-    client.connect(config["mqtt_host"], port=config["mqtt_port"])
+    # We're going to loop until the connection succeeds, once
+    # it does the paho state machine will take care of reconnects
+    while True:
+        try:
+            client.connect(config["mqtt_host"], port=config["mqtt_port"])
+        except ConnectionRefusedError:
+            LOGGER.info(
+                "Could not connect to %s:%s, retrying",
+                config["mqtt_host"],
+                config["mqtt_port"],
+            )
+            time.sleep(2)
+            continue
+
+        break
 
     # This will spawn a thread that handles events and reconnects
     client.loop_start()
 
     while True:
+        # This will sleep unless we're connected
+        with connected_cv:
+            connected_cv.wait_for(lambda: connected)
+
         data = queue.get(block=True)
         LOGGER.debug("Read from queue: %s", data)
 
-        if connected:
-            client.publish(
-                config["mqtt_topic"]
-                % {"mac": data["mac"], "name": data["ruuvi_mqtt_name"]},
-                json.dumps(data),
-            )
-        else:
-            # We're not connected, push the data back onto the queue, if
-            # possible. If not the data is lost, and that's life.
-            try:
-                queue.put(data, block=False)
-            except queue.Full:
-                # Ignore this
-                LOGGER.debug("MQTT not connected and queue full, data lost")
-                pass
-            time.sleep(1)
+        client.publish(
+            config["mqtt_topic"]
+            % {"mac": data["mac"], "name": data["ruuvi_mqtt_name"]},
+            json.dumps(data),
+        )
 
 
 def ruuvi_main(queue, config):
