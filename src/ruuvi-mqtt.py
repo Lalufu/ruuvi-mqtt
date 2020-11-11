@@ -85,11 +85,12 @@ def mqtt_main(queue, config):
     while True:
         try:
             client.connect(config["mqtt_host"], port=config["mqtt_port"])
-        except Exception:
+        except Exception as exc:
             LOGGER.info(
-                "Could not connect to %s:%s, retrying",
+                "Could not connect to %s:%s, retrying (%s)",
                 config["mqtt_host"],
                 config["mqtt_port"],
+                exc,
             )
             time.sleep(2)
             continue
