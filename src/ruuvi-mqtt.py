@@ -77,12 +77,15 @@ def mqtt_main(queue, config):
     client.on_connect = mqtt_on_connect
     client.on_disconnect = mqtt_on_disconnect
 
+    # This will spawn a thread that handles events and reconnects
+    client.loop_start()
+
     # We're going to loop until the connection succeeds, once
     # it does the paho state machine will take care of reconnects
     while True:
         try:
             client.connect(config["mqtt_host"], port=config["mqtt_port"])
-        except ConnectionRefusedError:
+        except Exception:
             LOGGER.info(
                 "Could not connect to %s:%s, retrying",
                 config["mqtt_host"],
@@ -92,9 +95,6 @@ def mqtt_main(queue, config):
             continue
 
         break
-
-    # This will spawn a thread that handles events and reconnects
-    client.loop_start()
 
     while True:
         # This will sleep unless we're connected
