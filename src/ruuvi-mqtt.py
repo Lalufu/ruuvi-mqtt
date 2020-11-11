@@ -8,7 +8,6 @@ import json
 import logging
 import math
 import multiprocessing
-import queue
 import re
 import textwrap
 import threading
@@ -181,7 +180,7 @@ def ruuvi_main(queue, config):
 
         LOGGER.debug("Read ruuvi data from mac %s: %s", mac, data)
 
-        if not "measurement_sequence_number" in data or "mac" not in data:
+        if "measurement_sequence_number" not in data or "mac" not in data:
             LOGGER.error(
                 "Received measurement without sequence number or mac: %s", data
             )
@@ -403,7 +402,8 @@ def main():
         "--mac-name",
         action="append",
         nargs="*",
-        help="Assign a name to a ruuvi tag mac address. Format: mac/name. The mac address must be entered with colons, the name must not contain spaces.",
+        help="Assign a name to a ruuvi tag mac address. Format: mac/name. The mac "
+        "address must be entered with colons, the name must not contain spaces.",
     )
     parser.add_argument(
         "--filter-mac-name",
@@ -419,13 +419,17 @@ def main():
     parser.add_argument(
         "--dewpoint",
         action="store_true",
-        help="Calculate an approximate dew point temperature and add it to the data as `ruuvi_mqtt_dewpoint`. This follows the Magnus formula with coefficients by Buck/1981",
+        help="Calculate an approximate dew point temperature and add it to the data "
+        "as `ruuvi_mqtt_dewpoint`. This follows the Magnus formula with "
+        "coefficients by Buck/1981",
     )
     parser.add_argument(
         "--mqtt-topic",
         type=str,
         default="ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR",
-        help="MQTT topic to publish to. May contain python format string references to variables `name` and `mac`. `mac` will not contain colons.",
+        help="MQTT topic to publish to. May contain python format string "
+        "references to variables `name` and `mac`. `mac` will not contain "
+        "colons.",
     )
     parser.add_argument(
         "--mqtt-host", type=str, required=True, help="MQTT server to connect to"
