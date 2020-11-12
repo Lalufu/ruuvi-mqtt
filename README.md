@@ -33,7 +33,7 @@ The program has the following command line parameters:
   through python formatting, and can contain references to the variables `mac`
   and `name`. `mac` will contain the MAC address of the tag, in lower case letters,
   and without colons. `name` will contain the name assigned to the tag, if any
-  (see `--mac-name`), otherwise the empty string. The default is
+  (see `--mac-name`), otherwise a copy of the `mac` field. The default is
   `ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR`.
 
 `--mac-name`
@@ -127,7 +127,7 @@ preserved, with the below changes.
 
 - a `ruuvi_mqtt_name` field is added, containing the human readable name
   of the tag as defined with `--mac-name`. If no name is defined for a tag
-  the empty string is used.
+  a copy of the `mac` field is used.
 
 - a `ruuvi_mqtt_dewpoint` field with a calculated dew point temperature
   is added when the `--dewpoint` option is given on the command line.

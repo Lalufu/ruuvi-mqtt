@@ -225,7 +225,8 @@ def ruuvi_main(queue, config):
         LOGGER.debug("Processed ruuvi data from mac %s: %s", mac, data)
 
         # Find the device name, if any
-        data["ruuvi_mqtt_name"] = config["macnames"].get(lmac, "")
+        # Use the `mac` field as a fallback
+        data["ruuvi_mqtt_name"] = config["macnames"].get(lmac, data["mac"])
 
         # Add a time stamp. This is an integer, in milliseconds
         # since epoch
