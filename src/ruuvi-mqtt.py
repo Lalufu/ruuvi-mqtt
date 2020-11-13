@@ -438,6 +438,14 @@ def main():
     parser.add_argument(
         "--mqtt-port", type=int, default=1883, help="MQTT port to connect to"
     )
+    parser.add_argument(
+        "--buffer-size",
+        type=int,
+        default=100000,
+        help="How many measurements to buffer if the MQTT "
+        "server should be unavailable. This buffer is not "
+        "persistent across program restarts.",
+    )
 
     args = parser.parse_args()
 
@@ -458,7 +466,7 @@ def main():
 
     LOGGER.debug("Completed config: %s", config)
 
-    ruuvi_mqtt_queue = multiprocessing.Queue(maxsize=100000)
+    ruuvi_mqtt_queue = multiprocessing.Queue(maxsize=args.buffer_size)
 
     procs = []
     ruuvi_proc = multiprocessing.Process(

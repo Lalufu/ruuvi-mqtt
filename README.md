@@ -28,6 +28,13 @@ The program has the following command line parameters:
 `--mqtt-port`
 : The MQTT port number to connect to. Defaults to 1883.
 
+`--buffer-size`
+: The size of the buffer (in number of measurements) that can be locally
+  saved when the MQTT server is unavailable. The buffer is not persistent,
+  and will be lost when the program exits. Defaults to 100000. When sizing,
+  take into consideration that each tag will send a measurement approximately
+  every second.
+
 `--mqtt-topic`
 : The MQTT topic to publish the information to. This is a string that is put
   through python formatting, and can contain references to the variables `mac`
