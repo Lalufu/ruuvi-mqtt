@@ -43,6 +43,12 @@ The program has the following command line parameters:
   (see `--mac-name`), otherwise a copy of the `mac` field. The default is
   `ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR`.
 
+`--mqtt-client-id`
+: The client identifier used when connecting to the MQTT gateway. This needs
+  to be unique for all clients connecting to the same gateway, only one
+  client can be connected with the same name at a time. The default is
+  `ruuvi-mqtt-gateway`.
+
 `--mac-name`
 : This allows assigning a human readable name to a tag. The format of this
   parameter is `mac/name`, where `mac` is the MAC address of the tag, in colon

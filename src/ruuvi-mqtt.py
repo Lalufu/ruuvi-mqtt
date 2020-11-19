@@ -8,6 +8,7 @@ import json
 import logging
 import math
 import multiprocessing
+import platform
 import re
 import textwrap
 import threading
@@ -72,7 +73,7 @@ def mqtt_main(queue, config):
     connected = False
     connected_cv = threading.Condition()
 
-    client = mqtt.Client("ruuvi-mqtt-gateway")
+    client = mqtt.Client(config["mqtt_client_id"])
     client.on_connect = mqtt_on_connect
     client.on_disconnect = mqtt_on_disconnect
 
@@ -439,6 +440,12 @@ def main():
         "--mqtt-port", type=int, default=1883, help="MQTT port to connect to"
     )
     parser.add_argument(
+        "--mqtt-client-id",
+        type=str,
+        default="ruuvi-mqtt-gateway",
+        help="MQTT client ID. Needs to be unique between all clients connecting to the same broker",
+    )
+    parser.add_argument(
         "--buffer-size",
         type=int,
         default=100000,
@@ -462,6 +469,7 @@ def main():
     config["mqtt_topic"] = args.mqtt_topic
     config["mqtt_host"] = args.mqtt_host
     config["mqtt_port"] = args.mqtt_port
+    config["mqtt_client_id"] = args.mqtt_client_id
     config["dewpoint"] = args.dewpoint
 
     LOGGER.debug("Completed config: %s", config)
