@@ -8,7 +8,6 @@ import json
 import logging
 import math
 import multiprocessing
-import platform
 import re
 import textwrap
 import threading
@@ -264,7 +263,7 @@ def process_mac_names(namelist):
 
             mac = mac.lower()
             if mac in ret:
-                raise ValueError("Duplicate definition for mac %s" % (mac,))
+                LOGGER.warning("Duplicate name definition for mac %s", mac)
 
             ret[mac] = name
         except Exception as exc:
@@ -309,7 +308,7 @@ def process_offset_poly(polylist):
             if not re.match(r"^(?:[a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$", mac):
                 raise ValueError("%s is not a valid MAC" % (mac,))
             if re.match(r"\s", measurement):
-                raise ValueError("measurement %s contains whitespace" % (name,))
+                raise ValueError("measurement %s contains whitespace" % (measurement,))
 
             # Turn constants into floats
             fconstants = [float(x) for x in constants.split(",")]
@@ -320,8 +319,8 @@ def process_offset_poly(polylist):
                 ret[mac] = {}
 
             if measurement in ret[mac]:
-                raise ValueError(
-                    "Duplicate offset definition for %s/%s" % (mac, measurement)
+                LOGGER.warning(
+                    "Duplicate offset definition for %s/%s", mac, measurement
                 )
 
             ret[mac][measurement] = mkpoly(*fconstants)
@@ -443,7 +442,8 @@ def main():
         "--mqtt-client-id",
         type=str,
         default="ruuvi-mqtt-gateway",
-        help="MQTT client ID. Needs to be unique between all clients connecting to the same broker",
+        help="MQTT client ID. Needs to be unique between all clients connecting "
+        "to the same broker",
     )
     parser.add_argument(
         "--buffer-size",
