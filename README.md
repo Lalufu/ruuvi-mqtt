@@ -22,11 +22,20 @@ how to set up bluez, which it uses under the hood.
 
 The program has the following command line parameters:
 
+`--config`
+: Specify a configuration file to load. See the section `Configuration file`
+  for details on the syntax. Command line options given in addition to the
+  config file override settings in the config file.
+
 `--mqtt-host`
 : The MQTT host name to connect to. This is a required parameter.
 
+  Config file: Section `general`, `mqtt-host`
+
 `--mqtt-port`
 : The MQTT port number to connect to. Defaults to 1883.
+
+  Config file: Section `general`, `mqtt-port`
 
 `--buffer-size`
 : The size of the buffer (in number of measurements) that can be locally
@@ -34,6 +43,8 @@ The program has the following command line parameters:
   and will be lost when the program exits. Defaults to 100000. When sizing,
   take into consideration that each tag will send a measurement approximately
   every second.
+
+  Config file: Section `general`, `buffer-size`
 
 `--mqtt-topic`
 : The MQTT topic to publish the information to. This is a string that is put
@@ -43,11 +54,15 @@ The program has the following command line parameters:
   (see `--mac-name`), otherwise a copy of the `mac` field. The default is
   `ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR`.
 
+  Config file: Section `general`, `mqtt-topic`
+
 `--mqtt-client-id`
 : The client identifier used when connecting to the MQTT gateway. This needs
   to be unique for all clients connecting to the same gateway, only one
   client can be connected with the same name at a time. The default is
   `ruuvi-mqtt-gateway`.
+
+  Config file: Section `general`, `mqtt-client-id`
 
 `--mac-name`
 : This allows assigning a human readable name to a tag. The format of this
@@ -56,9 +71,13 @@ The program has the following command line parameters:
   contain whitespace. This paramter can be used multiple times, to assign names
   to multiple tags.
 
+  Config file: `name` in the tag specific section
+
 `--filter-mac-name`
 : Filter traffic from Ruuvi tags to only accept messages from tags which have
   a name assigned via `--mac-name`, and ignore all other tags.
+
+  Config file: Section `general`, `filter-mac-name`
 
 `--offset-poly`
 : This defines a polynomial offset function to be applied to a certain measurement
@@ -69,10 +88,25 @@ The program has the following command line parameters:
   are given in descending order. See the section `Polynomial offset functions`
   for more details.
 
+  Config file: An option called `offset-<measurement>` in the tag specific
+  section
+
 `--dewpoint`
 : This will add a calculated, approximate dew point temperature to the
   data set under the `ruuvi_mqtt_dewpoint` key, based on temperature and
   humidity. See the section `Dew point temperature` for more details.
+
+  Config file: Section `general`, `dewpoint`
+
+## Configuration file
+The program supports a configuration file to define behaviour. The
+configuration file is in .ini file syntax, and can contain multiple sections.
+The `[general]` section contains settings that define overall program
+behaviour.
+
+Other sections are named after the MAC address of a Ruuvi tag (in colon
+separated form), and contain settings for this specific tag.
+
 
 ## Polynomial offset functions
 Polynomial offset functions are offered for multiple measurements,

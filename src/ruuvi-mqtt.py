@@ -4,6 +4,8 @@ Ruuvi-to-mqtt gateway
 """
 
 import argparse
+import codecs
+import configparser
 import json
 import logging
 import math
@@ -243,15 +245,14 @@ def ruuvi_main(queue, config):
     RuuviTagSensor.get_datas(ruuvi_handle_data, [x.upper() for x in config["filter"]])
 
 
-def process_mac_names(namelist):
+def process_mac_names(namelist, config):
     """
     Given a list of mac/name pairs from the CLI, parse the list,
     validate the entries, and produce a mac->name dict
     """
 
-    ret = {}
     if namelist is None:
-        return ret
+        return
 
     for entry in namelist:
         try:
@@ -262,45 +263,45 @@ def process_mac_names(namelist):
                 raise ValueError("Name %s contains whitespace" % (name,))
 
             mac = mac.lower()
-            if mac in ret:
+            if mac in config["macnames"]:
                 LOGGER.warning("Duplicate name definition for mac %s", mac)
 
-            ret[mac] = name
+            config["macnames"][mac] = name
         except Exception as exc:
             LOGGER.error("Error parsing %s: %s", entry, exc)
             raise SystemExit(1)
 
-    return ret
+    return
 
 
-def process_offset_poly(polylist):
+def mkpoly(*constants):
+    """
+    Return a function that evaluates the polynomial
+    given by the constants.
+
+    Constants are passed in descending order, an ... a2, a1, a0
+    for the polynomial
+
+    f(x) = an &* x^n + ... + a2 * x^2 + a1 * x^1 + a0
+    """
+    # Make a copy of the constants, they must not change
+    # later
+    cconstants = constants[:]
+
+    def poly(x):
+        return sum(((x ** e) * c) for e, c in enumerate(reversed(cconstants)))
+
+    return poly
+
+
+def process_offset_poly(polylist, config):
     """
     Given a list of offset definitions, parse the definitions and
-    return a structure
+    add to config
     """
 
-    def mkpoly(*constants):
-        """
-        Return a function that evaluates the polynomial
-        given by the constants.
-
-        Constants are passed in descending order, an ... a2, a1, a0
-        for the polynomial
-
-        f(x) = an &* x^n + ... + a2 * x^2 + a1 * x^1 + a0
-        """
-        # Make a copy of the constants, they must not change
-        # later
-        cconstants = constants[:]
-
-        def poly(x):
-            return sum(((x ** e) * c) for e, c in enumerate(reversed(cconstants)))
-
-        return poly
-
-    ret = {}
     if polylist is None:
-        return ret
+        return
 
     for entry in polylist:
         try:
@@ -315,27 +316,125 @@ def process_offset_poly(polylist):
 
             mac = mac.lower()
             measurement = measurement.lower()
-            if mac not in ret:
-                ret[mac] = {}
+            if mac not in config["offset_poly"]:
+                config["offset_poly"][mac] = {}
 
-            if measurement in ret[mac]:
+            if measurement in config["offset_poly"][mac]:
                 LOGGER.warning(
                     "Duplicate offset definition for %s/%s", mac, measurement
                 )
 
-            ret[mac][measurement] = mkpoly(*fconstants)
+            config["offset_poly"][mac][measurement] = mkpoly(*fconstants)
         except Exception as exc:
             LOGGER.error("Error parsing %s: %s", entry, exc)
             raise SystemExit(1)
 
-    return ret
+    return
+
+
+def load_config_file(filename):
+    """
+    Load the ini style config file given by `filename`
+    """
+
+    config = {"filter": [], "macnames": {}, "offset_poly": {}, "filter_mac_name": False}
+    ini = configparser.ConfigParser()
+    try:
+        with codecs.open(filename, encoding="utf-8") as configfile:
+            ini.read_file(configfile)
+    except Exception as exc:
+        LOGGER.error("Could not read config file %s: %s", filename, exc)
+        raise SystemExit(1)
+
+    if ini.has_option("general", "mqtt-host"):
+        config["mqtt_host"] = ini.get("general", "mqtt-host")
+
+    try:
+        if ini.has_option("general", "mqtt-port"):
+            config["mqtt_port"] = ini.getint("general", "mqtt-port")
+    except ValueError:
+        LOGGER.error(
+            "%s: %s is not a valid value for mqtt-port",
+            filename,
+            ini.get("general", "mqtt-port"),
+        )
+        raise SystemExit(1)
+
+    if ini.has_option("general", "mqtt-client-id"):
+        config["mqtt_client_id"] = ini.get("general", "mqtt-client-id")
+
+    try:
+        if ini.has_option("general", "dewpoint"):
+            config["dewpoint"] = ini.getboolean("general", "dewpoint")
+    except ValueError:
+        LOGGER.error(
+            "%s: %s is not a valid value for dewpoint",
+            filename,
+            ini.get("general", "dewpoint"),
+        )
+        raise SystemExit(1)
+
+    try:
+        if ini.has_option("general", "filter-mac-name"):
+            config["filter_mac_name"] = ini.getboolean("general", "filter-mac-name")
+    except ValueError:
+        LOGGER.error(
+            "%s: %s is not a valid value for filter-mac-name",
+            filename,
+            ini.get("general", "filter-mac-name"),
+        )
+        raise SystemExit(1)
+
+    try:
+        if ini.has_option("general", "buffer-size"):
+            config["buffer_size"] = ini.getint("general", "buffer-size")
+    except ValueError:
+        LOGGER.error(
+            "%s: %s is not a valid value for buffer-size",
+            filename,
+            ini.get("general", "buffer-size"),
+        )
+        raise SystemExit(1)
+
+    # Loop through other sections, and treat their names as MAC addresses
+    for section in ini.sections():
+        lsection = section.lower()
+        if lsection == "general":
+            continue
+
+        if not re.match(r"^(?:[a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}$", section):
+            LOGGER.error("%s: %s is not a valid MAC", filename, section)
+            raise SystemExit(1)
+
+        # Handle names
+        if ini.has_option(section, "name"):
+            config["macnames"][lsection] = ini.get(section, "name")
+
+        # Handle offset definitions
+        for option in ini.options(section):
+            if not option.startswith("offset-"):
+                continue
+
+            measurement = option[7:]
+            try:
+                constants = ini.get(section, option).split(",")
+                fconstants = [float(x) for x in constants]
+            except Exception as exc:
+                LOGGER.error("Error parsing %s: %s", constants, exc)
+                raise SystemExit(1)
+
+            if lsection not in config["offset_poly"]:
+                config["offset_poly"][lsection] = {}
+
+            config["offset_poly"][lsection][measurement] = mkpoly(*fconstants)
+
+    return config
 
 
 def main():
     """
     Main function
     """
-    config = {"filter": []}
 
     class CustomFormatter(
         argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter
@@ -399,6 +498,7 @@ def main():
         ),
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--config", type=str, help="Configuration file to load")
     parser.add_argument(
         "--mac-name",
         action="append",
@@ -410,6 +510,7 @@ def main():
         "--filter-mac-name",
         action="store_true",
         help="Build a MAC filter list from defined --mac-name pairs",
+        default=None,
     )
     parser.add_argument(
         "--offset-poly",
@@ -423,20 +524,19 @@ def main():
         help="Calculate an approximate dew point temperature and add it to the data "
         "as `ruuvi_mqtt_dewpoint`. This follows the Magnus formula with "
         "coefficients by Buck/1981",
+        default=None,
     )
     parser.add_argument(
         "--mqtt-topic",
         type=str,
-        default="ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR",
+        default=None,
         help="MQTT topic to publish to. May contain python format string "
         "references to variables `name` and `mac`. `mac` will not contain "
-        "colons.",
+        "colons. (Default: ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR)",
     )
+    parser.add_argument("--mqtt-host", type=str, help="MQTT server to connect to")
     parser.add_argument(
-        "--mqtt-host", type=str, required=True, help="MQTT server to connect to"
-    )
-    parser.add_argument(
-        "--mqtt-port", type=int, default=1883, help="MQTT port to connect to"
+        "--mqtt-port", type=int, default=None, help="MQTT port to connect to"
     )
     parser.add_argument(
         "--mqtt-client-id",
@@ -448,7 +548,7 @@ def main():
     parser.add_argument(
         "--buffer-size",
         type=int,
-        default=100000,
+        default=None,
         help="How many measurements to buffer if the MQTT "
         "server should be unavailable. This buffer is not "
         "persistent across program restarts.",
@@ -459,22 +559,56 @@ def main():
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    config["macnames"] = process_mac_names(args.mac_name)
+    if args.config:
+        config = load_config_file(args.config)
+    else:
+        config = {"filter": [], "filter_mac_name": False}
 
-    config["offset_poly"] = process_offset_poly(args.offset_poly)
+    LOGGER.debug("Config after loading config file: %s", config)
 
-    if args.filter_mac_name:
+    process_mac_names(args.mac_name, config)
+
+    process_offset_poly(args.offset_poly, config)
+
+    if config["filter_mac_name"] or args.filter_mac_name:
         config["filter"].extend(list(config["macnames"].keys()))
 
-    config["mqtt_topic"] = args.mqtt_topic
-    config["mqtt_host"] = args.mqtt_host
-    config["mqtt_port"] = args.mqtt_port
-    config["mqtt_client_id"] = args.mqtt_client_id
-    config["dewpoint"] = args.dewpoint
+    if args.mqtt_topic:
+        config["mqtt_topic"] = args.mqtt_topic
+    elif "mqtt_topic" not in config:
+        # Not set through config file, not set through CLI, use default
+        config["mqtt_topic"] = "ruuvi-mqtt/tele/%(mac)s/%(name)s/SENSOR"
+    if args.mqtt_host:
+        config["mqtt_host"] = args.mqtt_host
+
+    if args.mqtt_port:
+        config["mqtt_port"] = args.mqtt_port
+    elif "mqtt_port" not in config:
+        # Not set through config file, not set through CLI, use default
+        config["mqtt_port"] = 1883
+
+    if args.mqtt_client_id:
+        config["mqtt_client_id"] = args.mqtt_client_id
+    elif "mqtt_client_id" not in config:
+        # Not set through config file, not set through CLI, use default
+        config["mqtt_client_id"] = "ruuvi-mqtt-gateway"
+
+    if args.buffer_size:
+        config["buffer_size"] = args.buffer_size
+    elif "buffer_size" not in config:
+        # Not set through config file, not set through CLI, use default
+        config["buffer_size"] = 100000
+
+    if args.dewpoint:
+        config["dewpoint"] = args.dewpoint
 
     LOGGER.debug("Completed config: %s", config)
 
-    ruuvi_mqtt_queue = multiprocessing.Queue(maxsize=args.buffer_size)
+    if "mqtt_host" not in config:
+        LOGGER.error("No MQTT host given")
+        raise SystemExit(1)
+
+    ruuvi_mqtt_queue = multiprocessing.Queue(maxsize=config["buffer_size"])
 
     procs = []
     ruuvi_proc = multiprocessing.Process(
