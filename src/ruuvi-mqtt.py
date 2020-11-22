@@ -317,7 +317,7 @@ def main():
     parser.add_argument(
         "--mqtt-client-id",
         type=str,
-        default="ruuvi-mqtt-gateway",
+        default=None,
         help="MQTT client ID. Needs to be unique between all clients connecting "
         "to the same broker",
     )
