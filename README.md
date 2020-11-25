@@ -107,6 +107,19 @@ behaviour.
 Other sections are named after the MAC address of a Ruuvi tag (in colon
 separated form), and contain settings for this specific tag.
 
+### Example configuration file
+
+```
+[general]
+mqtt-client-id = ruuvi-mqtt-gateway-01
+mqtt-host = mqtt.example.com
+dewpoint = yes
+
+[aa:bb:cc:dd:ee:ff]
+name = Kitchen
+offset-temperature = 1,1.5
+```
+
 
 ## Polynomial offset functions
 Polynomial offset functions are offered for multiple measurements,
