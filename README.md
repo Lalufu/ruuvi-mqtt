@@ -11,12 +11,21 @@ It also can do some data enrichment and data calibration.
 
 ## Installation
 
-This is a single script program that can be run directly from a git
-checkout. The only external dependencies are `ruuvitag-sensor` and `paho-mqtt`.
-These can be installed in a venv if required via the enclosed `requirements.txt`.
+This project uses [Poetry](https://python-poetry.org/) for dependency
+management, and it's probably easiest to use this, Executing `poetry install 
+--no-dev` followed by `poetry run ruuvi-mqtt` from the git checkout root should
+set up a venv, install the required dependencies into a venv and run
+the main program.
+
+Installation via pip into a venv is also possible with `pip install .` from
+the git checkout root. This will also create the executable scripts in the
+`bin` dir of the checkout.
+
+In case you want to do things manually, the main entry point into
+the program is `ruuvi_mqtt/cli.py:ruuvi_mqtt()`.
 
 See the installation instructions of `ruuvitag-sensor` for information on
-how to set up bluez, which it uses under the hood.
+how to set up bluez, which this uses under the hood.
 
 ## Running
 

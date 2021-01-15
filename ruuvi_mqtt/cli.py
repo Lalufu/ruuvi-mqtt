@@ -1,6 +1,5 @@
-#!/usr/bin/python3
 """
-Ruuvi-to-mqtt gateway
+This file contains the CLI script entry points
 """
 
 import argparse
@@ -12,8 +11,8 @@ import re
 import textwrap
 import time
 
-from mqtt import mqtt_main
-from ruuvi import ruuvi_main
+from .mqtt import mqtt_main
+from .ruuvi import ruuvi_main
 
 logging.basicConfig(
     format="%(asctime)-15s %(levelname)s: %(message)s", level=logging.INFO
@@ -45,7 +44,7 @@ def process_mac_names(namelist, config):
             config["macnames"][mac] = name
         except Exception as exc:
             LOGGER.error("Error parsing %s: %s", entry, exc)
-            raise SystemExit(1)
+            raise SystemExit(1) from exc
 
     return
 
@@ -103,7 +102,7 @@ def process_offset_poly(polylist, config):
             config["offset_poly"][mac][measurement] = mkpoly(*fconstants)
         except Exception as exc:
             LOGGER.error("Error parsing %s: %s", entry, exc)
-            raise SystemExit(1)
+            raise SystemExit(1) from exc
 
     return
 
@@ -120,7 +119,7 @@ def load_config_file(filename):
             ini.read_file(configfile)
     except Exception as exc:
         LOGGER.error("Could not read config file %s: %s", filename, exc)
-        raise SystemExit(1)
+        raise SystemExit(1) from exc
 
     if ini.has_option("general", "mqtt-host"):
         config["mqtt_host"] = ini.get("general", "mqtt-host")
@@ -128,13 +127,13 @@ def load_config_file(filename):
     try:
         if ini.has_option("general", "mqtt-port"):
             config["mqtt_port"] = ini.getint("general", "mqtt-port")
-    except ValueError:
+    except ValueError as exc:
         LOGGER.error(
             "%s: %s is not a valid value for mqtt-port",
             filename,
             ini.get("general", "mqtt-port"),
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from exc
 
     if ini.has_option("general", "mqtt-client-id"):
         config["mqtt_client_id"] = ini.get("general", "mqtt-client-id")
@@ -142,35 +141,35 @@ def load_config_file(filename):
     try:
         if ini.has_option("general", "dewpoint"):
             config["dewpoint"] = ini.getboolean("general", "dewpoint")
-    except ValueError:
+    except ValueError as exc:
         LOGGER.error(
             "%s: %s is not a valid value for dewpoint",
             filename,
             ini.get("general", "dewpoint"),
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from exc
 
     try:
         if ini.has_option("general", "filter-mac-name"):
             config["filter_mac_name"] = ini.getboolean("general", "filter-mac-name")
-    except ValueError:
+    except ValueError as exc:
         LOGGER.error(
             "%s: %s is not a valid value for filter-mac-name",
             filename,
             ini.get("general", "filter-mac-name"),
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from exc
 
     try:
         if ini.has_option("general", "buffer-size"):
             config["buffer_size"] = ini.getint("general", "buffer-size")
-    except ValueError:
+    except ValueError as exc:
         LOGGER.error(
             "%s: %s is not a valid value for buffer-size",
             filename,
             ini.get("general", "buffer-size"),
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from exc
 
     # Loop through other sections, and treat their names as MAC addresses
     for section in ini.sections():
@@ -197,7 +196,7 @@ def load_config_file(filename):
                 fconstants = [float(x) for x in constants]
             except Exception as exc:
                 LOGGER.error("Error parsing %s: %s", constants, exc)
-                raise SystemExit(1)
+                raise SystemExit(1) from exc
 
             if lsection not in config["offset_poly"]:
                 config["offset_poly"][lsection] = {}
@@ -207,7 +206,7 @@ def load_config_file(filename):
     return config
 
 
-def main():
+def ruuvi_mqtt():
     """
     Main function
     """
@@ -222,8 +221,6 @@ def main():
         This is from https://stackoverflow.com/questions/18462610/argumentparser-epilog-and-description-formatting-in-conjunction-with-argumentdef
         and I have no idea why this works.
         """
-
-        pass
 
     parser = argparse.ArgumentParser(
         formatter_class=CustomFormatter,
@@ -401,16 +398,14 @@ def main():
 
     # Wait forever for one of the threads to die. If that happens,
     # kill the whole program.
-    while True:
+    run = True
+    while run:
         for proc in procs:
             if not proc.is_alive():
                 LOGGER.error("Child process died, terminating program")
-                for proc in procs:
-                    proc.terminate()
-                raise SystemExit(1)
-
+                run = False
         time.sleep(1)
 
-
-if __name__ == "__main__":
-    main()
+    for proc in procs:
+        proc.terminate()
+    raise SystemExit(1)

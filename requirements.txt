@@ -1,2 +1,0 @@
-ruuvitag-sensor
-paho-mqtt

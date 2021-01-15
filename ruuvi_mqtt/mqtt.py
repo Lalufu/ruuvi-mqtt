@@ -4,10 +4,10 @@ Ruuvi-to-mqtt gateway
 This file contains the mqtt specific code
 """
 
+import json
 import logging
 import threading
 import time
-import json
 
 import paho.mqtt.client as mqtt
 
