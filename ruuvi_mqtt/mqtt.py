@@ -6,15 +6,17 @@ This file contains the mqtt specific code
 
 import json
 import logging
+import multiprocessing
 import threading
 import time
+from typing import Any, Dict
 
-import paho.mqtt.client as mqtt
+import paho.mqtt.client as mqtt  # type: ignore
 
 LOGGER = logging.getLogger(__name__)
 
 
-def mqtt_main(queue, config):
+def mqtt_main(ruuvi_queue: multiprocessing.Queue, config: Dict[str, Any]) -> None:
     """
     Main function for the MQTT process
 
@@ -92,7 +94,7 @@ def mqtt_main(queue, config):
         with connected_cv:
             connected_cv.wait_for(lambda: connected)
 
-        data = queue.get(block=True)
+        data = ruuvi_queue.get(block=True)
         LOGGER.debug("Read from queue: %s", data)
 
         client.publish(

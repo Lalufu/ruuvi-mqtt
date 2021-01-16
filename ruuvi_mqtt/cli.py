@@ -10,6 +10,7 @@ import multiprocessing
 import re
 import textwrap
 import time
+from typing import Any, Callable, Dict, List
 
 from .mqtt import mqtt_main
 from .ruuvi import ruuvi_main
@@ -20,7 +21,7 @@ logging.basicConfig(
 LOGGER = logging.getLogger(__name__)
 
 
-def process_mac_names(namelist, config):
+def process_mac_names(namelist: List[str], config: Dict[str, Any]) -> None:
     """
     Given a list of mac/name pairs from the CLI, parse the list,
     validate the entries, and produce a mac->name dict
@@ -49,7 +50,7 @@ def process_mac_names(namelist, config):
     return
 
 
-def mkpoly(*constants):
+def mkpoly(*constants: float) -> Callable[[float], float]:
     """
     Return a function that evaluates the polynomial
     given by the constants.
@@ -63,13 +64,13 @@ def mkpoly(*constants):
     # later
     cconstants = constants[:]
 
-    def poly(x):
-        return sum(((x ** e) * c) for e, c in enumerate(reversed(cconstants)))
+    def poly(arg):
+        return sum(((arg ** e) * c) for e, c in enumerate(reversed(cconstants)))
 
     return poly
 
 
-def process_offset_poly(polylist, config):
+def process_offset_poly(polylist: List[str], config: Dict[str, Any]) -> None:
     """
     Given a list of offset definitions, parse the definitions and
     add to config
@@ -107,12 +108,17 @@ def process_offset_poly(polylist, config):
     return
 
 
-def load_config_file(filename):
+def load_config_file(filename: str) -> Dict[str, Any]:
     """
     Load the ini style config file given by `filename`
     """
 
-    config = {"filter": [], "macnames": {}, "offset_poly": {}, "filter_mac_name": False}
+    config: Dict[str, Any] = {
+        "filter": [],
+        "macnames": {},
+        "offset_poly": {},
+        "filter_mac_name": False,
+    }
     ini = configparser.ConfigParser()
     try:
         with codecs.open(filename, encoding="utf-8") as configfile:
@@ -206,7 +212,7 @@ def load_config_file(filename):
     return config
 
 
-def ruuvi_mqtt():
+def ruuvi_mqtt() -> None:
     """
     Main function
     """
@@ -381,7 +387,9 @@ def ruuvi_mqtt():
         LOGGER.error("No MQTT host given")
         raise SystemExit(1)
 
-    ruuvi_mqtt_queue = multiprocessing.Queue(maxsize=config["buffer_size"])
+    ruuvi_mqtt_queue: multiprocessing.Queue = multiprocessing.Queue(
+        maxsize=config["buffer_size"]
+    )
 
     procs = []
     ruuvi_proc = multiprocessing.Process(

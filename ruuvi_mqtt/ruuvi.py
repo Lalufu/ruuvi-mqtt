@@ -7,15 +7,18 @@ This contains the Ruuvi specific parts
 
 import logging
 import math
+import multiprocessing
+import queue
 import time
 from collections import defaultdict
+from typing import Any, Dict, Tuple
 
-from ruuvitag_sensor.ruuvi import RuuviTagSensor
+from ruuvitag_sensor.ruuvi import RuuviTagSensor  # type: ignore
 
 LOGGER = logging.getLogger(__name__)
 
 
-def ruuvi_main(queue, config):
+def ruuvi_main(mqtt_queue: multiprocessing.Queue, config: Dict[str, Any]) -> None:
     """
     Main function for the Ruuvi process
 
@@ -27,9 +30,9 @@ def ruuvi_main(queue, config):
     #
     # Measurement numbers go up, normally, possibly skipping entries.
     # They may also go down (when a Ruuvi reboots)
-    last_measurement = defaultdict(lambda: 0)
+    last_measurement: Dict[str, int] = defaultdict(lambda: 0)
 
-    def dewpoint(temperature, humidity):
+    def dewpoint(temperature: float, humidity: float) -> float:
         """
         Calculate an approximate dewpoint temperature Tdp, given a temperature T
         and relative humidity H.
@@ -67,7 +70,7 @@ def ruuvi_main(queue, config):
 
         return (c * N) / (b - N)
 
-    def ruuvi_handle_data(found_data):
+    def ruuvi_handle_data(found_data: Tuple[str, Dict[str, Any]]) -> None:
         """
         Callback function for tag data
 
@@ -76,7 +79,7 @@ def ruuvi_main(queue, config):
 
         If the queue is full, drop the data.
         """
-        nonlocal queue
+        nonlocal mqtt_queue
         nonlocal last_measurement
 
         mac, data = found_data
@@ -137,7 +140,7 @@ def ruuvi_main(queue, config):
         data["ruuvi_mqtt_timestamp"] = int(time.time() * 1000)
 
         try:
-            queue.put(data, block=False)
+            mqtt_queue.put(data, block=False)
         except queue.Full:
             # Ignore this
             pass
