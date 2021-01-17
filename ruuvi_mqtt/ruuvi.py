@@ -8,7 +8,6 @@ This contains the Ruuvi specific parts
 import logging
 import math
 import multiprocessing
-import queue
 import time
 from collections import defaultdict
 from typing import Any, Dict, Tuple
@@ -141,7 +140,7 @@ def ruuvi_main(mqtt_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
 
         try:
             mqtt_queue.put(data, block=False)
-        except queue.Full:
+        except Exception:
             # Ignore this
             pass
 
