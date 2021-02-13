@@ -106,6 +106,16 @@ def ruuvi_main(mqtt_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
 
         last_measurement[data["mac"]] = cur_seq
 
+        # Sometimes Ruuvitags send humitity values ~100% offset from the
+        # "real" value. Ignore these, leaving a small window for values >
+        # 100%, which might be real
+
+        if data["humidity"] > 105:
+            LOGGER.error(
+                "Received invalid humidity value %.2f%%, ignoring", data["humidity"]
+            )
+            return
+
         # Process the data through offset functions
         if lmac in config["offset_poly"]:
             processed_data = {}
