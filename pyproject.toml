@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "ruuvi-mqtt"
-version = "0.1.0"
+version = "0.1.1"
 description = "This is a simple application that reads BLE broadcasts from Ruuvi tags and sends them to an MQTT gateway."
 authors = ["Ralf Ertzinger <ralf@skytale.net>"]
 license = "GPL3"
 
 [tool.poetry.dependencies]
 python = "^3.6"
-ruuvitag-sensor = "^1.1.0"
+ruuvitag-sensor = "^1.2.0"
 paho-mqtt = "^1.5.1"
 
 [tool.poetry.dev-dependencies]
