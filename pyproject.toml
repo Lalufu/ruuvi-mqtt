@@ -7,7 +7,7 @@ license = "GPL3"
 
 [tool.poetry.dependencies]
 python = "^3.6"
-ruuvitag-sensor = "^1.1.0"
+ruuvitag-sensor = "^1.2.0"
 paho-mqtt = "^1.5.1"
 
 [tool.poetry.dev-dependencies]
