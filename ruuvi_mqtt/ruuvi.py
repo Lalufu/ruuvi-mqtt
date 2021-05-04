@@ -12,6 +12,7 @@ import time
 from collections import defaultdict
 from typing import Any, Dict, Tuple
 
+import ruuvitag_sensor  # type: ignore
 from ruuvitag_sensor.ruuvi import RuuviTagSensor  # type: ignore
 
 LOGGER = logging.getLogger(__name__)
@@ -154,6 +155,9 @@ def ruuvi_main(mqtt_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
             # Ignore this
             pass
 
-    LOGGER.info("ruuvi process starting")
+    LOGGER.info(
+        "ruuvi process starting, ruuvitag_sensor version %s",
+        ruuvitag_sensor.__version__,
+    )
 
     RuuviTagSensor.get_datas(ruuvi_handle_data, [x.upper() for x in config["filter"]])

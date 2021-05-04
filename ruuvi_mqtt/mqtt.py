@@ -11,6 +11,7 @@ import threading
 import time
 from typing import Any, Dict
 
+import paho.mqtt  # type: ignore
 import paho.mqtt.client as mqtt  # type: ignore
 
 LOGGER = logging.getLogger(__name__)
@@ -56,7 +57,7 @@ def mqtt_main(ruuvi_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
             # We do not have to wake up the waiter for this,
             # because they'll just go back to sleep anyway
 
-    LOGGER.info("mqtt process starting")
+    LOGGER.info("mqtt process starting, paho.mqtt version %s", paho.mqtt.__version__)
 
     # connected is tracking the connection state to MQTT.
     # connected_cv is a condition variable that is protecing
