@@ -20,6 +20,9 @@ flake8 = "^3.8.4"
 [tool.poetry.scripts]
 ruuvi-mqtt = "ruuvi_mqtt.cli:ruuvi_mqtt"
 
+[tool.isort]
+profile = "black"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
