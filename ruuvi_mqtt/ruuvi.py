@@ -107,6 +107,12 @@ def ruuvi_main(mqtt_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
 
         last_measurement[data["mac"]] = cur_seq
 
+        # Occasionally there are measurements that do not have a humidity
+        # value. Log these and continue
+        if data["humidity"] is None:
+            LOGGER.error("Measurement from %s without humidity: %s", mac, data)
+            return
+
         # Sometimes Ruuvitags send humitity values ~100% offset from the
         # "real" value. Ignore these, leaving a small window for values >
         # 100%, which might be real
