@@ -201,5 +201,9 @@ preserved, with the below changes.
 - a `ruuvi_mqtt_dewpoint` field with a calculated dew point temperature
   is added when the `--dewpoint` option is given on the command line.
 
+- a `ruuvi_mqtt_movement_delta` field is calculated as the difference between
+  subsequent `movement_counter` field values. `movement_counter` is an 8 bit
+  unsigned field, overflow is taken into consideration.
+
 - For each field that was modified through a `--offset-poly` function, the
   original value is preserved in a field called `ruuvi_mqtt_raw_<field>`.

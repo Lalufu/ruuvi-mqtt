@@ -32,6 +32,10 @@ def ruuvi_main(mqtt_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
     # They may also go down (when a Ruuvi reboots)
     last_measurement: Dict[str, int] = defaultdict(lambda: 0)
 
+    # Used to track the last movement counter value we've seen,
+    # to calculate deltas
+    last_movement_counter: Dict[str, int] = defaultdict(lambda: None)
+
     def dewpoint(temperature: float, humidity: float) -> float:
         """
         Calculate an approximate dewpoint temperature Tdp, given a temperature T
@@ -81,6 +85,7 @@ def ruuvi_main(mqtt_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
         """
         nonlocal mqtt_queue
         nonlocal last_measurement
+        nonlocal last_movement_counter
 
         mac, data = found_data
         lmac = mac.lower()
@@ -144,6 +149,25 @@ def ruuvi_main(mqtt_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
             data["ruuvi_mqtt_dewpoint"] = round(
                 dewpoint(data["temperature"], data["humidity"]), 2
             )
+
+        # Calculate the movement_counter difference from the previous
+        # measurement. This is an 8 bit unsigned counter value.
+        #
+        # If we don't have a previous value, set the delta to 0
+        # If the delta is negative, correct for a possible overflow. If the
+        # result is < 32, take this as a real measurement delta, otherwise
+        # assume this was a reboot and set the delta to 0.
+        if last_movement_counter[data["mac"]] is None:
+            delta = 0
+        else:
+            delta = data["movement_counter"] - last_movement_counter[data["mac"]]
+            if delta < 0:
+                delta += 256
+                if delta >= 32:
+                    delta = 0
+
+        last_movement_counter[data["mac"]] = data["movement_counter"]
+        data["ruuvi_mqtt_movement_delta"] = delta
 
         LOGGER.debug("Processed ruuvi data from mac %s: %s", mac, data)
 
