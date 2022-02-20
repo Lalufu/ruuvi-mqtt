@@ -70,7 +70,7 @@ def mkpoly(*constants: float) -> Callable[[float], float]:
     cconstants = constants[:]
 
     def poly(arg):
-        return sum(((arg ** e) * c) for e, c in enumerate(reversed(cconstants)))
+        return sum(((arg**e) * c) for e, c in enumerate(reversed(cconstants)))
 
     return poly
 
