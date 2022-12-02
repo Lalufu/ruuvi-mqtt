@@ -37,6 +37,7 @@ def mqtt_main(ruuvi_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
         with connected_cv:
             connected = rc == 0
             if connected:
+                LOGGER.info("Connected to MQTT")
                 connected_cv.notify()
 
     def mqtt_on_disconnect(client, userdata, rc):
