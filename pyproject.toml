@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ruuvi-mqtt"
-version = "0.1.3"
+version = "0.1.4"
 description = "This is a simple application that reads BLE broadcasts from Ruuvi tags and sends them to an MQTT gateway."
 authors = ["Ralf Ertzinger <ralf@skytale.net>"]
 license = "GPL3"
