@@ -99,6 +99,13 @@ def mqtt_main(ruuvi_queue: multiprocessing.Queue, config: Dict[str, Any]) -> Non
         data = ruuvi_queue.get(block=True)
         LOGGER.debug("Read from queue: %s", data)
 
+        # The paho thread may have died (see
+        # https://github.com/eclipse/paho.mqtt.python/pull/674)
+        # Check for this and die completely if true
+        if not client._thread.is_alive():  # pylint: disable=protected-access
+            LOGGER.error("mqtt publishing thread died, bailing out")
+            raise SystemExit(1)
+
         client.publish(
             config["mqtt_topic"]
             % {"mac": data["mac"], "name": data["ruuvi_mqtt_name"]},
